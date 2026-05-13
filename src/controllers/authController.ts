@@ -8,7 +8,11 @@ import * as otplib from 'otplib';
 // Helper to get authenticator instance safely
 const getAuthenticator = () => {
     const lib = otplib as any;
-    return lib.authenticator || lib.default?.authenticator || lib;
+    const instance = lib.authenticator || lib.default?.authenticator || (typeof lib.generateSecret === 'function' ? lib : null);
+    if (instance) {
+        console.log('✅ AuthController: Found Authenticator instance');
+    }
+    return instance;
 };
 import prisma from '../lib/prisma';
 import { sendSMS } from '../lib/africastalking';
