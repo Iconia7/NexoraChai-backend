@@ -121,6 +121,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
   }
 
   const event = req.body;
+  if (event.event === 'charge.success') {
     const { reference } = event.data;
     try {
       const transaction = await (prisma.paymentTransaction as any).update({
@@ -128,7 +129,6 @@ export const handleWebhook = async (req: Request, res: Response) => {
         data: { status: 'COMPLETED' }
       });
       
-      // Create notification
       await (prisma as any).notification.create({
         data: {
           creatorId: transaction.creatorId,
@@ -161,7 +161,6 @@ export const handleWebhook = async (req: Request, res: Response) => {
 export const handleMpesaCallback = async (req: Request, res: Response) => {
   console.log('--- Received Daraja Callback ---');
   
-  // Security Check: Verify secret token
   const { token } = req.query;
   if (token !== process.env.WEBHOOK_SECRET) {
       console.error('❌ Unauthorized M-Pesa callback attempt');
@@ -179,8 +178,6 @@ export const handleMpesaCallback = async (req: Request, res: Response) => {
     const status = ResultCode === 0 ? 'COMPLETED' : 'FAILED';
     
     if (status === 'COMPLETED') {
-        // Atomic update: Mark as completed AND increment wallet balance
-        // Idempotency: Only update if status is PENDING
         try {
             await prisma.$transaction(async (tx: any) => {
                 const transaction = await tx.paymentTransaction.findUnique({
@@ -196,24 +193,25 @@ export const handleMpesaCallback = async (req: Request, res: Response) => {
                     data: { status: 'COMPLETED' }
                 });
 
-            // For M-Pesa tips, we increment the creator's wallet
-            await tx.creatorWallet.upsert({
-                where: { creatorId: transaction.creatorId },
-                update: { balance: { increment: transaction.netAmount } },
-                create: { creatorId: transaction.creatorId, balance: transaction.netAmount }
-            });
+                await tx.creatorWallet.upsert({
+                    where: { creatorId: transaction.creatorId },
+                    update: { balance: { increment: transaction.netAmount } },
+                    create: { creatorId: transaction.creatorId, balance: transaction.netAmount }
+                });
 
-            // Create notification
-            await tx.notification.create({
-                data: {
-                    creatorId: transaction.creatorId,
-                    type: 'SUCCESS',
-                    title: 'New M-Pesa Support! ☕',
-                    message: `${transaction.fanName || 'Someone'} sent you KES ${transaction.netAmount.toLocaleString()} via M-Pesa.`
-                }
+                await tx.notification.create({
+                    data: {
+                        creatorId: transaction.creatorId,
+                        type: 'SUCCESS',
+                        title: 'New M-Pesa Support! ☕',
+                        message: `${transaction.fanName || 'Someone'} sent you KES ${transaction.netAmount.toLocaleString()} via M-Pesa.`
+                    }
+                });
             });
-        });
-        console.log(`✅ M-Pesa Tip Success: ${CheckoutRequestID} -> Wallet Updated & Notified`);
+            console.log(`✅ M-Pesa Tip Success: ${CheckoutRequestID} -> Wallet Updated`);
+        } catch (innerErr: any) {
+            console.error('❌ M-Pesa Transaction Error:', innerErr.message);
+        }
     } else {
         await (prisma.paymentTransaction as any).update({
             where: { gatewayReference: CheckoutRequestID },
