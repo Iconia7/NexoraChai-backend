@@ -48,7 +48,7 @@ export const initializeMpesa = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     res.status(500).json({ error: error.message });
   }
@@ -107,7 +107,7 @@ export const initializePayment = async (req: Request, res: Response) => {
     res.json(paystackData.data);
   } catch (error: any) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors[0].message });
+      return res.status(400).json({ error: error.issues[0].message });
     }
     res.status(500).json({ error: error.message });
   }

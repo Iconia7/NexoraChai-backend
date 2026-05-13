@@ -2,8 +2,8 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { authenticator } from 'otplib';
 import { z } from 'zod';
+import * as otplib from 'otplib';
 import prisma from '../lib/prisma';
 import { sendSMS } from '../lib/africastalking';
 import { sendPasswordResetEmail } from '../lib/emailService';
@@ -88,7 +88,7 @@ export const register = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         if (error instanceof z.ZodError) {
-            return res.status(400).json({ error: error.errors[0].message });
+            return res.status(400).json({ error: error.issues[0].message });
         }
         res.status(500).json({ error: error.message });
     }
@@ -148,7 +148,7 @@ export const login = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         if (error instanceof z.ZodError) {
-            return res.status(400).json({ error: error.errors[0].message });
+            return res.status(400).json({ error: error.issues[0].message });
         }
         res.status(500).json({ error: error.message });
     }
@@ -214,7 +214,7 @@ export const verify2FALogin = async (req: Request, res: Response) => {
         });
         if (!user || !user.twoFactorSecret) return res.status(400).json({ error: 'Invalid request' });
 
-        const isValid = authenticator.verify({
+        const isValid = otplib.authenticator.verify({
             token: code,
             secret: user.twoFactorSecret
         });
