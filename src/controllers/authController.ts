@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { z } from 'zod';
-import * as otplib from 'otplib';
+const { authenticator } = require('otplib');
 import prisma from '../lib/prisma';
 import { sendSMS } from '../lib/africastalking';
 import { sendPasswordResetEmail } from '../lib/emailService';
@@ -214,7 +214,7 @@ export const verify2FALogin = async (req: Request, res: Response) => {
         });
         if (!user || !user.twoFactorSecret) return res.status(400).json({ error: 'Invalid request' });
 
-        const isValid = otplib.authenticator.verify({
+        const isValid = authenticator.verify({
             token: code,
             secret: user.twoFactorSecret
         });

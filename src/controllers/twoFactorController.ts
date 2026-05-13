@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import * as otplib from 'otplib';
+const { authenticator } = require('otplib');
 import QRCode from 'qrcode';
 import prisma from '../lib/prisma';
 
@@ -10,8 +10,8 @@ export const setup2FA = async (req: Request, res: Response) => {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const secret = otplib.authenticator.generateSecret();
-    const otpauth = otplib.authenticator.keyuri(user.email, 'Nexora Chai', secret);
+    const secret = authenticator.generateSecret();
+    const otpauth = authenticator.keyuri(user.email, 'Nexora Chai', secret);
     const qrCodeUrl = await QRCode.toDataURL(otpauth);
 
     // Temporarily save the secret but don't enable it yet
@@ -34,7 +34,7 @@ export const verifyAndEnable2FA = async (req: Request, res: Response) => {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user || !user.twoFactorSecret) return res.status(400).json({ error: '2FA not set up' });
 
-    const isValid = otplib.authenticator.verify({
+    const isValid = authenticator.verify({
       token: code,
       secret: user.twoFactorSecret
     });
@@ -62,7 +62,7 @@ export const disable2FA = async (req: Request, res: Response) => {
         return res.status(400).json({ error: '2FA is not enabled' });
     }
 
-    const isValid = otplib.authenticator.verify({
+    const isValid = authenticator.verify({
       token: code,
       secret: user.twoFactorSecret
     });
