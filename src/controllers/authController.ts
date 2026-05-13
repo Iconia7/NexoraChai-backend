@@ -7,7 +7,8 @@ import * as otplib from 'otplib';
 
 // Helper to get authenticator instance safely
 const getAuthenticator = () => {
-    return otplib.authenticator || (otplib as any).default?.authenticator || otplib;
+    const lib = otplib as any;
+    return lib.authenticator || lib.default?.authenticator || lib;
 };
 import prisma from '../lib/prisma';
 import { sendSMS } from '../lib/africastalking';
