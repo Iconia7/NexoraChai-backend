@@ -39,7 +39,7 @@ export const checkUsernameAvailability = async (req: Request, res: Response) => 
   const { username } = req.params;
   try {
     const profile = await prisma.creatorProfile.findUnique({
-      where: { username: username.toLowerCase() }
+      where: { username: (username as string).toLowerCase() }
     });
     res.json({ available: !profile });
   } catch (error: any) {

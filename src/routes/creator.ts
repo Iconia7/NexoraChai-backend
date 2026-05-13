@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { setupProfile, getProfile, getDashboard, updateProfile, changePassword, updatePayoutNumber, listCreators, getNotifications, markNotificationAsRead } from '../controllers/creatorController';
+import { setupProfile, checkUsernameAvailability, getProfile, getDashboard, updateProfile, changePassword, updatePayoutNumber, listCreators, getNotifications, markNotificationAsRead } from '../controllers/creatorController';
 import { authenticateToken } from '../middlewares/auth';
 
 const router = Router();
