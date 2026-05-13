@@ -6,6 +6,7 @@ const router = Router();
 
 router.get('/', listCreators);
 router.post('/setup', authenticateToken, setupProfile);
+router.get('/check-username/:username', checkUsernameAvailability);
 router.get('/dashboard', authenticateToken, getDashboard);
 router.get('/notifications', authenticateToken, getNotifications);
 router.patch('/notifications/:id/read', authenticateToken, markNotificationAsRead);

@@ -35,6 +35,18 @@ export const setupProfile = async (req: Request, res: Response) => {
   }
 };
 
+export const checkUsernameAvailability = async (req: Request, res: Response) => {
+  const { username } = req.params;
+  try {
+    const profile = await prisma.creatorProfile.findUnique({
+      where: { username: username.toLowerCase() }
+    });
+    res.json({ available: !profile });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 export const listCreators = async (req: Request, res: Response) => {
   try {
     const creators = await (prisma.creatorProfile as any).findMany({
