@@ -5,23 +5,29 @@ import prisma from '../lib/prisma';
 
 export const setup2FA = async (req: Request, res: Response) => {
   const userId = (req as any).user.id;
+  console.log(`🔐 Initiating 2FA setup for user: ${userId}`);
 
   try {
     const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) {
+        console.error('❌ 2FA Setup: User not found');
+        return res.status(404).json({ error: 'User not found' });
+    }
 
     const secret = authenticator.generateSecret();
     const otpauth = authenticator.keyuri(user.email, 'Nexora Chai', secret);
     const qrCodeUrl = await QRCode.toDataURL(otpauth);
 
     // Temporarily save the secret but don't enable it yet
-    await (prisma.user as any).update({
+    await prisma.user.update({
       where: { id: userId },
       data: { twoFactorSecret: secret }
     });
 
+    console.log('✅ 2FA Secret generated and saved');
     res.json({ qrCodeUrl, secret });
   } catch (error: any) {
+    console.error('🔥 2FA Setup Error:', error.message);
     res.status(500).json({ error: error.message });
   }
 };
