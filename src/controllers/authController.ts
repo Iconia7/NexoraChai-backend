@@ -3,7 +3,12 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { z } from 'zod';
-import { authenticator } from 'otplib';
+import * as otplib from 'otplib';
+
+// Helper to get authenticator instance safely
+const getAuthenticator = () => {
+    return otplib.authenticator || (otplib as any).default?.authenticator || otplib;
+};
 import prisma from '../lib/prisma';
 import { sendSMS } from '../lib/africastalking';
 import { sendPasswordResetEmail } from '../lib/emailService';
@@ -214,7 +219,8 @@ export const verify2FALogin = async (req: Request, res: Response) => {
         });
         if (!user || !user.twoFactorSecret) return res.status(400).json({ error: 'Invalid request' });
 
-        const isValid = authenticator.verify({
+        const authenticator = getAuthenticator();
+        const isValid = (authenticator as any).verify({
             token: code,
             secret: user.twoFactorSecret
         });
