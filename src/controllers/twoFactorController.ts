@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
-const otplib = require('otplib');
-const authenticatorInstance = otplib.authenticator || otplib;
+import { authenticator } from 'otplib';
 import QRCode from 'qrcode';
 import prisma from '../lib/prisma';
 
@@ -15,8 +14,20 @@ export const setup2FA = async (req: Request, res: Response) => {
         return res.status(404).json({ error: 'User not found' });
     }
 
-    const secret = authenticatorInstance.generateSecret();
-    const otpauth = authenticatorInstance.keyuri(user.email, 'Nexora Chai', secret);
+    // Defensive check for authenticator
+    if (!authenticator || typeof authenticator.generateSecret !== 'function') {
+        throw new Error('Authenticator library not loaded correctly');
+    }
+
+    const secret = authenticator.generateSecret();
+    
+    // Support both keyuri and keyURI just in case
+    const keyuriMethod = (authenticator as any).keyuri || (authenticator as any).keyURI;
+    if (typeof keyuriMethod !== 'function') {
+        throw new Error('Authenticator.keyuri is not a function on this version');
+    }
+
+    const otpauth = keyuriMethod.call(authenticator, user.email, 'Nexora Chai', secret);
     const qrCodeUrl = await QRCode.toDataURL(otpauth);
 
     // Temporarily save the secret but don't enable it yet
@@ -41,7 +52,7 @@ export const verifyAndEnable2FA = async (req: Request, res: Response) => {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user || !user.twoFactorSecret) return res.status(400).json({ error: '2FA not set up' });
 
-    const isValid = authenticatorInstance.verify({
+    const isValid = authenticator.verify({
       token: code,
       secret: user.twoFactorSecret
     });
@@ -69,7 +80,7 @@ export const disable2FA = async (req: Request, res: Response) => {
         return res.status(400).json({ error: '2FA is not enabled' });
     }
 
-    const isValid = authenticatorInstance.verify({
+    const isValid = authenticator.verify({
       token: code,
       secret: user.twoFactorSecret
     });
