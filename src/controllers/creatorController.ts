@@ -401,15 +401,16 @@ export const uploadAvatar = async (req: Request, res: Response) => {
   const userId = (req as any).user.id;
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
-  // Use environment variable or intelligently detect production
-  let baseUrl = process.env.BACKEND_URL;
-
-  if (!baseUrl) {
-    // Fallback for production vs development
-    baseUrl = process.env.NODE_ENV === 'production'
-      ? 'https://api.chai.nexoracreatives.co.ke'
-      : 'http://localhost:4000';
-  }
+    // Use environment variable or intelligently detect production
+    let baseUrl = process.env.BACKEND_URL;
+    
+    if (!baseUrl) {
+        // PRODUCTION-FIRST: Default to production URL unless explicitly in dev mode
+        const isDevelopment = process.env.NODE_ENV === 'development';
+        baseUrl = isDevelopment 
+            ? 'http://localhost:4000'
+            : 'https://api.chai.nexoracreatives.co.ke';
+    }
 
   const avatarUrl = `${baseUrl}/uploads/${req.file.filename}`;
 
