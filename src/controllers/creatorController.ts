@@ -12,14 +12,25 @@ const prisma = new PrismaClient();
 
 export const setupProfile = async (req: Request, res: Response) => {
   const userId = (req as any).user.id;
-  const { username, displayName } = req.body;
+  const { username, displayName, bio, mpesaNumber, avatarUrl } = req.body;
 
   try {
-    const profile = await prisma.creatorProfile.create({
-      data: {
-        userId,
-        username,
+    const profile = await prisma.creatorProfile.upsert({
+      where: { userId },
+      update: {
+        username: username.toLowerCase(),
         displayName,
+        bio,
+        mpesaNumber,
+        avatarUrl
+      },
+      create: {
+        userId,
+        username: username.toLowerCase(),
+        displayName,
+        bio,
+        mpesaNumber,
+        avatarUrl,
         wallet: {
           create: { balance: 0 }
         }
