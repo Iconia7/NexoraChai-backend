@@ -9,18 +9,25 @@ import creatorRoutes from './routes/creator';
 import paymentRoutes from './routes/payments';
 import withdrawalRoutes from './routes/withdrawalRoutes';
 
+import path from 'path';
+
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 // Security: Security Headers
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: false, // Allow images to be loaded cross-origin
+}));
 
 // Security: CORS hardening
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:3000',
-  'https://chai.nexoracreatives.co.ke' // Production domain
+  'https://chai.nexoracreatives.co.ke'
 ];
 
 app.use(cors({

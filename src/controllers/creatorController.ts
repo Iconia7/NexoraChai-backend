@@ -4,6 +4,9 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { sendWelcomeEmail } from '../lib/emailService';
 import { profileUpdateSchema, passwordChangeSchema, payoutUpdateSchema } from '../lib/schemas';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 const prisma = new PrismaClient();
 
@@ -332,6 +335,53 @@ export const markNotificationAsRead = async (req: Request, res: Response) => {
             data: { isRead: true }
         });
         res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Multer Config
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const dir = 'uploads/';
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+        const userId = (req as any).user.id;
+        const ext = path.extname(file.originalname);
+        cb(null, `avatar-${userId}-${Date.now()}${ext}`);
+    }
+});
+
+export const upload = multer({
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only images are allowed'));
+        }
+    }
+});
+
+export const uploadAvatar = async (req: Request, res: Response) => {
+    const userId = (req as any).user.id;
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    // Use environment variable or default to localhost for development
+    const baseUrl = process.env.BACKEND_URL || 'http://localhost:4000';
+    const avatarUrl = `${baseUrl}/uploads/${req.file.filename}`;
+
+    try {
+        const profile = await (prisma.creatorProfile as any).update({
+            where: { userId },
+            data: { avatarUrl }
+        });
+        res.json({ avatarUrl: profile.avatarUrl });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
