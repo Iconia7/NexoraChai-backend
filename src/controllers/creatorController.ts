@@ -443,15 +443,26 @@ export const getBadge = async (req: Request, res: Response) => {
         }
     });
     
-    // SVG Template - Branded for Nexora Chai
+    // SVG Template - Polished for Nexora Chai
     const svg = `
-    <svg width="180" height="32" viewBox="0 0 180 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="180" height="32" rx="16" fill="#914D00"/>
-      <path d="M22 12h1a2 2 0 0 1 0 4h-1" stroke="white" stroke-width="2" stroke-linecap="round"/>
-      <path d="M12 12h10v8a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-8z" fill="white"/>
-      <text x="38" y="21" fill="white" font-family="Arial, sans-serif" font-weight="900" font-size="12" text-transform="uppercase" letter-spacing="0.05em">BUY ME A CHAI</text>
-      <rect x="145" y="6" width="28" height="20" rx="10" fill="white" fill-opacity="0.2"/>
-      <text x="159" y="20" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-weight="900" font-size="10">${count}</text>
+    <svg width="200" height="32" viewBox="0 0 200 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="amberGradient" x1="0" y1="0" x2="200" y2="0" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#914D00"/>
+          <stop offset="1" stop-color="#B36200"/>
+        </linearGradient>
+      </defs>
+      <rect width="200" height="32" rx="16" fill="url(#amberGradient)"/>
+      
+      <!-- Chai Icon -->
+      <path d="M22 12h1.5a2.5 2.5 0 0 1 0 5h-1.5" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      <path d="M11 12h11v9a3 3 0 0 1-3 3h-5a3 3 0 0 1-3-3v-9z" fill="white"/>
+      
+      <text x="42" y="21" fill="white" font-family="Verdana, sans-serif" font-weight="900" font-size="11" letter-spacing="0.05em">BUY ME A CHAI</text>
+      
+      <!-- Counter Badge -->
+      <rect x="155" y="6" width="36" height="20" rx="10" fill="white" fill-opacity="0.15"/>
+      <text x="173" y="20" text-anchor="middle" fill="white" font-family="Verdana, sans-serif" font-weight="900" font-size="10">${count}</text>
     </svg>
     `;
 
