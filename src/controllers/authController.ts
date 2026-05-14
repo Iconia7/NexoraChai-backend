@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { z } from 'zod';
 import * as otplib from 'otplib';
+import axios from 'axios';
 
 // Helper to get authenticator instance safely
 const getAuthenticator = () => {
@@ -239,5 +240,85 @@ export const verify2FALogin = async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
+    }
+};
+
+export const nexoraIdCallback = async (req: Request, res: Response) => {
+    const { code, redirect_uri } = req.body;
+    
+    if (!code) {
+        return res.status(400).json({ error: 'Authorization code is required' });
+    }
+
+    try {
+        const NEXORA_ID_URL = process.env.NEXORA_ID_URL;
+        const CLIENT_ID = process.env.NEXORA_CLIENT_ID;
+        const CLIENT_SECRET = process.env.NEXORA_CLIENT_SECRET;
+
+        // 1. Exchange code for token
+        const tokenResponse = await axios.post(`${NEXORA_ID_URL}/oauth/token`, {
+            grant_type: 'authorization_code',
+            code,
+            client_id: CLIENT_ID,
+            client_secret: CLIENT_SECRET,
+            redirect_uri
+        });
+
+        const { access_token } = tokenResponse.data;
+
+        // 2. Get user info
+        const userinfoResponse = await axios.get(`${NEXORA_ID_URL}/oauth/userinfo`, {
+            headers: { Authorization: `Bearer ${access_token}` }
+        });
+
+        const { email, name, picture } = userinfoResponse.data;
+
+        // 3. Find or Create User
+        let user = await prisma.user.findUnique({
+            where: { email },
+            include: { profile: true }
+        });
+
+        if (!user) {
+            // Create New User
+            user = await prisma.user.create({
+                data: {
+                    email,
+                    password: crypto.randomBytes(16).toString('hex'), // OIDC users don't use passwords
+                    isVerified: true,
+                    profile: {
+                        create: {
+                            username: email.split('@')[0] + Math.floor(Math.random() * 1000),
+                            displayName: name || email.split('@')[0],
+                            avatarUrl: picture || null,
+                            wallet: {
+                                create: {}
+                            }
+                        }
+                    }
+                },
+                include: { profile: true }
+            });
+        } else {
+            // Update existing user profile if needed
+            if (user.profile && picture && user.profile.avatarUrl !== picture) {
+                await prisma.creatorProfile.update({
+                    where: { userId: user.id },
+                    data: { avatarUrl: picture }
+                });
+            }
+        }
+
+        // 4. Generate Chai JWT
+        const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+
+        return res.json({
+            user: { id: user.id, email: user.email, profile: user.profile },
+            token
+        });
+
+    } catch (error: any) {
+        console.error('Nexora ID Callback Error:', error.response?.data || error.message);
+        return res.status(500).json({ error: 'Failed to authenticate with Nexora ID' });
     }
 };
