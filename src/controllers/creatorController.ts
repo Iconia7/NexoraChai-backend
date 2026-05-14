@@ -19,15 +19,15 @@ export const setupProfile = async (req: Request, res: Response) => {
     // 1. Normalize M-Pesa number for Paystack (should be local format like 07... or 01...)
     let normalizedNumber = mpesaNumber.replace(/\D/g, '');
     if (normalizedNumber.startsWith('254')) {
-        normalizedNumber = '0' + normalizedNumber.substring(3);
+      normalizedNumber = '0' + normalizedNumber.substring(3);
     }
 
     // 2. Create Paystack Subaccount for creator
     const subaccount = await createSubaccount({
-        business_name: displayName,
-        bank_code: 'MPESA',
-        account_number: normalizedNumber,
-        percentage_charge: 5 // Default platform fee
+      business_name: displayName,
+      bank_code: 'MPESA',
+      account_number: normalizedNumber,
+      percentage_charge: 5 // Default platform fee
     });
 
     // 3. Upsert Profile with Paystack info
@@ -58,7 +58,7 @@ export const setupProfile = async (req: Request, res: Response) => {
     // Send welcome email
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (user) {
-        await sendWelcomeEmail(user.email, displayName);
+      await sendWelcomeEmail(user.email, displayName);
     }
 
     res.json(profile);
@@ -193,8 +193,8 @@ export const getDashboard = async (req: Request, res: Response) => {
     transactions.forEach((t: any) => {
       if (t.type === 'TIP' && t.status === 'COMPLETED') {
         const src = (t as any).source || 'Direct Link';
-        const normalizedSrc = src.toLowerCase().includes('twitter') ? 'Twitter / X' : 
-                             src.toLowerCase().includes('instagram') ? 'Instagram' : 'Direct Link';
+        const normalizedSrc = src.toLowerCase().includes('twitter') ? 'Twitter / X' :
+          src.toLowerCase().includes('instagram') ? 'Instagram' : 'Direct Link';
         sourcesMap[normalizedSrc] = (sourcesMap[normalizedSrc] || 0) + 1;
         totalSourced++;
       }
@@ -216,14 +216,14 @@ export const getDashboard = async (req: Request, res: Response) => {
       d.setMonth(d.getMonth() - (11 - i));
       const month = d.getMonth();
       const year = d.getFullYear();
-      
+
       const monthTotal = allTransactions
         .filter((t: any) => {
           const td = new Date(t.createdAt);
           return td.getMonth() === month && td.getFullYear() === year;
         })
         .reduce((acc: number, t: any) => acc + (t.netAmount || 0), 0);
-      
+
       return monthTotal;
     });
 
@@ -235,8 +235,8 @@ export const getDashboard = async (req: Request, res: Response) => {
       wallet: profile.wallet,
       paystackTotal,
       user: {
-          email: profile.user.email,
-          twoFactorEnabled: (profile.user as any).twoFactorEnabled
+        email: profile.user.email,
+        twoFactorEnabled: (profile.user as any).twoFactorEnabled
       },
       transactions: transactions.slice(0, 10),
       totalEarnings,
@@ -257,7 +257,7 @@ export const getDashboard = async (req: Request, res: Response) => {
 
 export const updateProfile = async (req: Request, res: Response) => {
   const userId = (req as any).user.id;
-  
+
   try {
     const validated = profileUpdateSchema.parse(req.body);
     const { displayName, bio, avatarUrl, category } = validated;
@@ -276,142 +276,150 @@ export const updateProfile = async (req: Request, res: Response) => {
 };
 
 export const incrementViews = async (req: Request, res: Response) => {
-    const { username } = req.params;
-    try {
-        await (prisma.creatorProfile as any).update({
-            where: { username },
-            data: { views: { increment: 1 } }
-        });
-        res.json({ success: true });
-    } catch (error: any) {
-        res.status(500).json({ error: error.message });
-    }
+  const { username } = req.params;
+  try {
+    await (prisma.creatorProfile as any).update({
+      where: { username },
+      data: { views: { increment: 1 } }
+    });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
 export const changePassword = async (req: Request, res: Response) => {
-    const userId = (req as any).user.id;
-    try {
-        const validated = passwordChangeSchema.parse(req.body);
-        const { currentPassword, newPassword } = validated;
+  const userId = (req as any).user.id;
+  try {
+    const validated = passwordChangeSchema.parse(req.body);
+    const { currentPassword, newPassword } = validated;
 
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        if (!user) return res.status(404).json({ error: 'User not found' });
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
-        const isMatch = await bcrypt.compare(currentPassword, user.password);
-        if (!isMatch) return res.status(401).json({ error: 'Current password is incorrect' });
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) return res.status(401).json({ error: 'Current password is incorrect' });
 
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-        await prisma.user.update({
-            where: { id: userId },
-            data: { password: hashedPassword }
-        });
-        res.json({ success: true });
-    } catch (error: any) {
-        if (error instanceof z.ZodError) {
-            return res.status(400).json({ error: error.issues[0].message });
-        }
-        res.status(500).json({ error: error.message });
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword }
+    });
+    res.json({ success: true });
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.issues[0].message });
     }
+    res.status(500).json({ error: error.message });
+  }
 };
 
 export const updatePayoutNumber = async (req: Request, res: Response) => {
-    const userId = (req as any).user.id;
-    try {
-        const validated = payoutUpdateSchema.parse(req.body);
-        const { currentPassword, mpesaNumber } = validated;
+  const userId = (req as any).user.id;
+  try {
+    const validated = payoutUpdateSchema.parse(req.body);
+    const { currentPassword, mpesaNumber } = validated;
 
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        if (!user) return res.status(404).json({ error: 'User not found' });
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
-        const isMatch = await bcrypt.compare(currentPassword, user.password);
-        if (!isMatch) return res.status(401).json({ error: 'Current password is incorrect' });
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) return res.status(401).json({ error: 'Current password is incorrect' });
 
-        await prisma.creatorProfile.update({
-            where: { userId },
-            data: { mpesaNumber }
-        });
-        res.json({ success: true });
-    } catch (error: any) {
-        if (error instanceof z.ZodError) {
-            return res.status(400).json({ error: error.issues[0].message });
-        }
-        res.status(500).json({ error: error.message });
+    await prisma.creatorProfile.update({
+      where: { userId },
+      data: { mpesaNumber }
+    });
+    res.json({ success: true });
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.issues[0].message });
     }
+    res.status(500).json({ error: error.message });
+  }
 };
 
 export const getNotifications = async (req: Request, res: Response) => {
-    const userId = (req as any).user.id;
-    try {
-        const profile = await prisma.creatorProfile.findUnique({ where: { userId } });
-        if (!profile) return res.status(404).json({ error: 'Profile not found' });
+  const userId = (req as any).user.id;
+  try {
+    const profile = await prisma.creatorProfile.findUnique({ where: { userId } });
+    if (!profile) return res.status(404).json({ error: 'Profile not found' });
 
-        const notifications = await (prisma as any).notification.findMany({
-            where: { creatorId: profile.id },
-            orderBy: { createdAt: 'desc' },
-            take: 20
-        });
-        res.json(notifications);
-    } catch (error: any) {
-        res.status(500).json({ error: error.message });
-    }
+    const notifications = await (prisma as any).notification.findMany({
+      where: { creatorId: profile.id },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    });
+    res.json(notifications);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
 export const markNotificationAsRead = async (req: Request, res: Response) => {
-    const { id } = req.params;
-    try {
-        await (prisma as any).notification.update({
-            where: { id },
-            data: { isRead: true }
-        });
-        res.json({ success: true });
-    } catch (error: any) {
-        res.status(500).json({ error: error.message });
-    }
+  const { id } = req.params;
+  try {
+    await (prisma as any).notification.update({
+      where: { id },
+      data: { isRead: true }
+    });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
 // Multer Config
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const dir = 'uploads/';
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
-        cb(null, dir);
-    },
-    filename: (req, file, cb) => {
-        const userId = (req as any).user.id;
-        const ext = path.extname(file.originalname);
-        cb(null, `avatar-${userId}-${Date.now()}${ext}`);
+  destination: (req, file, cb) => {
+    const dir = 'uploads/';
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
     }
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const userId = (req as any).user.id;
+    const ext = path.extname(file.originalname);
+    cb(null, `avatar-${userId}-${Date.now()}${ext}`);
+  }
 });
 
 export const upload = multer({
-    storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-    fileFilter: (req, file, cb) => {
-        if (file.mimetype.startsWith('image/')) {
-            cb(null, true);
-        } else {
-            cb(new Error('Only images are allowed'));
-        }
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only images are allowed'));
     }
+  }
 });
 
 export const uploadAvatar = async (req: Request, res: Response) => {
-    const userId = (req as any).user.id;
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const userId = (req as any).user.id;
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
-    // Use environment variable or default to localhost for development
-    const baseUrl = process.env.BACKEND_URL || 'http://localhost:4000';
-    const avatarUrl = `${baseUrl}/uploads/${req.file.filename}`;
+  // Use environment variable or intelligently detect production
+  let baseUrl = process.env.BACKEND_URL;
 
-    try {
-        const profile = await (prisma.creatorProfile as any).update({
-            where: { userId },
-            data: { avatarUrl }
-        });
-        res.json({ avatarUrl: profile.avatarUrl });
-    } catch (error: any) {
-        res.status(500).json({ error: error.message });
-    }
+  if (!baseUrl) {
+    // Fallback for production vs development
+    baseUrl = process.env.NODE_ENV === 'production'
+      ? 'https://api.chai.nexoracreatives.co.ke'
+      : 'http://localhost:4000';
+  }
+
+  const avatarUrl = `${baseUrl}/uploads/${req.file.filename}`;
+
+  try {
+    const profile = await (prisma.creatorProfile as any).update({
+      where: { userId },
+      data: { avatarUrl }
+    });
+    res.json({ avatarUrl: profile.avatarUrl });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
 };
