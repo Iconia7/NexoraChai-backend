@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { sendWelcomeEmail } from '../lib/emailService';
 import { profileUpdateSchema, passwordChangeSchema, payoutUpdateSchema } from '../lib/schemas';
+import { createSubaccount } from '../lib/paystack';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -15,6 +16,21 @@ export const setupProfile = async (req: Request, res: Response) => {
   const { username, displayName, bio, mpesaNumber, avatarUrl } = req.body;
 
   try {
+    // 1. Normalize M-Pesa number for Paystack (should be local format like 07... or 01...)
+    let normalizedNumber = mpesaNumber.replace(/\D/g, '');
+    if (normalizedNumber.startsWith('254')) {
+        normalizedNumber = '0' + normalizedNumber.substring(3);
+    }
+
+    // 2. Create Paystack Subaccount for creator
+    const subaccount = await createSubaccount({
+        business_name: displayName,
+        bank_code: 'MPESA',
+        account_number: normalizedNumber,
+        percentage_charge: 5 // Default platform fee
+    });
+
+    // 3. Upsert Profile with Paystack info
     const profile = await prisma.creatorProfile.upsert({
       where: { userId },
       update: {
@@ -22,7 +38,8 @@ export const setupProfile = async (req: Request, res: Response) => {
         displayName,
         bio,
         mpesaNumber,
-        avatarUrl
+        avatarUrl,
+        paystackSubaccountCode: subaccount.data.subaccount_code
       },
       create: {
         userId,
@@ -31,6 +48,7 @@ export const setupProfile = async (req: Request, res: Response) => {
         bio,
         mpesaNumber,
         avatarUrl,
+        paystackSubaccountCode: subaccount.data.subaccount_code,
         wallet: {
           create: { balance: 0 }
         }
