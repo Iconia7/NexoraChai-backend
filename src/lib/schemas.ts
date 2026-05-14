@@ -15,7 +15,7 @@ export const loginSchema = z.object({
 // Payment Schemas
 export const mpesaPaymentSchema = z.object({
   creatorId: z.string().min(1, 'Creator ID is required'),
-  amount: z.number().min(5, 'Minimum tip amount is KES 5').max(150000, 'Maximum M-Pesa tip is KES 150,000'),
+  amount: z.number().min(1, 'Minimum tip amount is KES 1').max(150000, 'Maximum M-Pesa tip is KES 150,000'),
   phoneNumber: z.string().regex(/^(?:\+254|0)[17]\d{8}$/, 'Invalid Kenyan phone number'),
   fanName: z.string().max(50).optional(),
   fanMessage: z.string().max(200).optional()
