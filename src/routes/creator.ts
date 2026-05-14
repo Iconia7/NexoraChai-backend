@@ -15,5 +15,6 @@ router.post('/upload-avatar', authenticateToken, (creatorController as any).uplo
 router.post('/payout-number', authenticateToken, creatorController.updatePayoutNumber);
 router.post('/change-password', authenticateToken, creatorController.changePassword);
 router.get('/:username', creatorController.getProfile);
+router.get('/badge/:username', creatorController.getBadge);
 
 export default router;

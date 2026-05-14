@@ -424,3 +424,40 @@ export const uploadAvatar = async (req: Request, res: Response) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const getBadge = async (req: Request, res: Response) => {
+  const { username } = req.params;
+  
+  try {
+    const creator = await prisma.creatorProfile.findUnique({
+      where: { username },
+      include: {
+        _count: {
+          select: { transactions: { where: { status: 'COMPLETED', type: 'TIP' } } }
+        }
+      }
+    });
+
+    if (!creator) return res.status(404).send('Creator not found');
+
+    const count = creator._count.transactions;
+    
+    // SVG Template - Branded for Nexora Chai
+    const svg = `
+    <svg width="180" height="32" viewBox="0 0 180 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="180" height="32" rx="16" fill="#914D00"/>
+      <path d="M22 12h1a2 2 0 0 1 0 4h-1" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      <path d="M12 12h10v8a2 2 0 0 1-2 2h-6a2 2 0 0 1-2-2v-8z" fill="white"/>
+      <text x="38" y="21" fill="white" font-family="Arial, sans-serif" font-weight="900" font-size="12" text-transform="uppercase" letter-spacing="0.05em">BUY ME A CHAI</text>
+      <rect x="145" y="6" width="28" height="20" rx="10" fill="white" fill-opacity="0.2"/>
+      <text x="159" y="20" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-weight="900" font-size="10">${count}</text>
+    </svg>
+    `;
+
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+    res.send(svg);
+  } catch (error) {
+    res.status(500).send('Error generating badge');
+  }
+};
