@@ -426,21 +426,22 @@ export const uploadAvatar = async (req: Request, res: Response) => {
 };
 
 export const getBadge = async (req: Request, res: Response) => {
-  const { username } = req.params;
+  const username = req.params.username as string;
   
   try {
     const creator = await prisma.creatorProfile.findUnique({
-      where: { username },
-      include: {
-        _count: {
-          select: { transactions: { where: { status: 'COMPLETED', type: 'TIP' } } }
-        }
-      }
+      where: { username }
     });
 
     if (!creator) return res.status(404).send('Creator not found');
 
-    const count = creator._count.transactions;
+    const count = await prisma.paymentTransaction.count({
+        where: {
+            creatorId: creator.id,
+            status: 'COMPLETED',
+            type: 'TIP'
+        }
+    });
     
     // SVG Template - Branded for Nexora Chai
     const svg = `
