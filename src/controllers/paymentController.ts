@@ -267,6 +267,7 @@ export const checkStatus = async (req: Request, res: Response) => {
 
         // FALLBACK: If still pending, ask Paystack directly (in case webhook failed)
         try {
+            console.log(`🔍 Polling Fallback: Checking Paystack for ref ${reference}...`);
             const paystackRes = await axios.get(`https://api.paystack.co/transaction/verify/${reference}`, {
                 headers: {
                     Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`
@@ -274,41 +275,40 @@ export const checkStatus = async (req: Request, res: Response) => {
             });
 
             if (paystackRes.data.status && paystackRes.data.data.status === 'success') {
-                console.log(`🎯 Direct verification success for ${reference}. Updating DB...`);
+                console.log(`🎯 PAYSTACK CONFIRMED SUCCESS for ${reference}. Updating Database now...`);
                 
-                // Perform the same logic as the webhook
-                await prisma.$transaction(async (tx: any) => {
-                    const latestTx = await tx.paymentTransaction.findUnique({
-                        where: { id: transaction.id }
-                    });
+                // 1. Update Transaction Status
+                const updatedTx = await (prisma.paymentTransaction as any).update({
+                    where: { id: transaction.id },
+                    data: { status: 'COMPLETED' }
+                });
+                console.log(`✅ Transaction status set to COMPLETED for ${reference}`);
 
-                    if (latestTx.status !== 'COMPLETED') {
-                        await tx.paymentTransaction.update({
-                            where: { id: transaction.id },
-                            data: { status: 'COMPLETED' }
-                        });
+                // 2. Update Creator Wallet
+                const updatedWallet = await (prisma.creatorWallet as any).upsert({
+                    where: { creatorId: transaction.creatorId },
+                    update: { balance: { increment: transaction.netAmount } },
+                    create: { creatorId: transaction.creatorId, balance: transaction.netAmount }
+                });
+                console.log(`💰 Wallet updated! New balance: KES ${updatedWallet.balance}`);
 
-                        await tx.creatorWallet.upsert({
-                            where: { creatorId: transaction.creatorId },
-                            update: { balance: { increment: transaction.netAmount } },
-                            create: { creatorId: transaction.creatorId, balance: transaction.netAmount }
-                        });
-
-                        await tx.notification.create({
-                            data: {
-                                creatorId: transaction.creatorId,
-                                type: 'SUCCESS',
-                                title: 'New Support! ☕',
-                                message: `${transaction.fanName || 'Someone'} bought you chais worth KES ${transaction.netAmount.toLocaleString()}`
-                            }
-                        });
+                // 3. Create Notification
+                await (prisma.notification as any).create({
+                    data: {
+                        creatorId: transaction.creatorId,
+                        type: 'SUCCESS',
+                        title: 'New Support! ☕',
+                        message: `${transaction.fanName || 'Someone'} bought you chais worth KES ${transaction.netAmount.toLocaleString()}`
                     }
                 });
+                console.log(`🔔 Notification sent to creator.`);
 
                 return res.json({ status: 'COMPLETED' });
+            } else {
+                console.log(`⏳ Paystack still says: ${paystackRes.data.data?.status || 'unknown'}`);
             }
         } catch (verifyErr: any) {
-            console.error('Direct verification check failed (might be too early):', verifyErr.message);
+            console.error('❌ Direct verification failed:', verifyErr.response?.data || verifyErr.message);
         }
 
         res.json({ status: transaction.status });
