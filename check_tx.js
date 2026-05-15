@@ -7,7 +7,7 @@ async function checkTx() {
     include: { creator: true }
   });
   console.log('Transaction:', JSON.stringify(tx, null, 2));
-  
+
   const wallet = await prisma.creatorWallet.findFirst({
     where: { creatorId: tx?.creatorId }
   });
