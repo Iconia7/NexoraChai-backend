@@ -300,11 +300,14 @@ export const nexoraIdCallback = async (req: Request, res: Response) => {
                 include: { profile: true }
             });
         } else {
-            // Update existing user profile if needed
-            if (user.profile && picture && user.profile.avatarUrl !== picture) {
+            // Update existing user profile to match Nexora ID
+            if (user.profile) {
                 await prisma.creatorProfile.update({
                     where: { userId: user.id },
-                    data: { avatarUrl: picture }
+                    data: { 
+                        avatarUrl: picture || user.profile.avatarUrl,
+                        displayName: name || user.profile.displayName
+                    }
                 });
             }
         }
