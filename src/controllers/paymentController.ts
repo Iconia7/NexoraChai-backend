@@ -125,21 +125,39 @@ export const handleWebhook = async (req: Request, res: Response) => {
   if (event.event === 'charge.success') {
     const { reference } = event.data;
     try {
-      const transaction = await (prisma.paymentTransaction as any).update({
-        where: { gatewayReference: reference },
-        data: { status: 'COMPLETED' }
-      });
-      
-      await (prisma as any).notification.create({
-        data: {
-          creatorId: transaction.creatorId,
-          type: 'SUCCESS',
-          title: 'New Card Support! ☕',
-          message: `${transaction.fanName || 'Someone'} bought you chais worth KES ${transaction.netAmount.toLocaleString()}`
+      await prisma.$transaction(async (tx: any) => {
+        const transaction = await tx.paymentTransaction.findUnique({
+          where: { gatewayReference: reference }
+        });
+
+        if (!transaction || transaction.status !== 'PENDING') {
+          console.log(`⚠️ Transaction ${reference} already processed or not found.`);
+          return;
         }
+
+        await tx.paymentTransaction.update({
+          where: { id: transaction.id },
+          data: { status: 'COMPLETED' }
+        });
+
+        // Add to creator wallet balance
+        await tx.creatorWallet.upsert({
+          where: { creatorId: transaction.creatorId },
+          update: { balance: { increment: transaction.netAmount } },
+          create: { creatorId: transaction.creatorId, balance: transaction.netAmount }
+        });
+
+        await tx.notification.create({
+          data: {
+            creatorId: transaction.creatorId,
+            type: 'SUCCESS',
+            title: 'New Card Support! ☕',
+            message: `${transaction.fanName || 'Someone'} bought you chais worth KES ${transaction.netAmount.toLocaleString()}`
+          }
+        });
       });
 
-      console.log(`✅ Paystack Payment success: ${reference}`);
+      console.log(`✅ Paystack Payment success & wallet updated: ${reference}`);
     } catch (err) {
       console.error(`❌ Webhook Success Update Error:`, err);
     }
@@ -230,6 +248,9 @@ export const handleMpesaCallback = async (req: Request, res: Response) => {
 
 export const checkStatus = async (req: Request, res: Response) => {
     const { reference } = req.params;
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     try {
         const transaction = await (prisma.paymentTransaction as any).findUnique({
             where: { gatewayReference: reference }
