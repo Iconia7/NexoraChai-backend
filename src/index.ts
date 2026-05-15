@@ -60,7 +60,7 @@ const paymentLimiter = rateLimit({
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/auth/2fa', authLimiter, twoFactorRoutes);
 app.use('/api/creators', creatorRoutes);
-app.use('/api/payments', paymentLimiter, paymentRoutes);
+app.use('/api/payments', paymentRoutes);
 app.use('/api/withdrawals', withdrawalRoutes);
 
 app.get('/health', (req, res) => {
