@@ -78,10 +78,10 @@ export const initializePayment = async (req: Request, res: Response) => {
       amount: Math.round(grossAmount * 100), // Paystack takes kobo/cents
       currency: 'KES',
       reference,
-      ...(creator.paystackSubaccountCode ? {
+      /* ...(creator.paystackSubaccountCode ? {
         subaccount: creator.paystackSubaccountCode,
         bearer: 'subaccount'
-      } : {}),
+      } : {}), */
       callback_url: `${req.headers.origin || 'https://chai.nexoracreatives.co.ke'}/[username]`.replace('[username]', creator.username),
       metadata: {
         fanName,
