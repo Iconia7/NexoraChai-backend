@@ -81,6 +81,7 @@ export const initializePayment = async (req: Request, res: Response) => {
         subaccount: creator.paystackSubaccountCode,
         bearer: 'subaccount'
       } : {}),
+      callback_url: `${req.headers.origin || 'https://chai.nexoracreatives.co.ke'}/[username]`.replace('[username]', creator.username),
       metadata: {
         fanName,
         fanMessage,
