@@ -5,6 +5,7 @@ import { initializeTransaction } from '../lib/paystack';
 import { initiateSTKPush } from '../lib/daraja';
 import { mpesaPaymentSchema, cardPaymentSchema } from '../lib/schemas';
 import crypto from 'crypto';
+import axios from 'axios';
 
 export const initializeMpesa = async (req: Request, res: Response) => {
   try {
@@ -306,7 +307,7 @@ export const checkStatus = async (req: Request, res: Response) => {
 
                 return res.json({ status: 'COMPLETED' });
             }
-        } catch (verifyErr) {
+        } catch (verifyErr: any) {
             console.error('Direct verification check failed (might be too early):', verifyErr.message);
         }
 
