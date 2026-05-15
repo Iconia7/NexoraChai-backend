@@ -251,6 +251,7 @@ export const checkStatus = async (req: Request, res: Response) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
+
     try {
         const transaction = await (prisma.paymentTransaction as any).findUnique({
             where: { gatewayReference: reference }
@@ -258,6 +259,57 @@ export const checkStatus = async (req: Request, res: Response) => {
         
         if (!transaction) return res.status(404).json({ error: 'Transaction not found' });
         
+        // If already completed, just return it
+        if (transaction.status === 'COMPLETED') {
+            return res.json({ status: 'COMPLETED' });
+        }
+
+        // FALLBACK: If still pending, ask Paystack directly (in case webhook failed)
+        try {
+            const paystackRes = await axios.get(`https://api.paystack.co/transaction/verify/${reference}`, {
+                headers: {
+                    Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`
+                }
+            });
+
+            if (paystackRes.data.status && paystackRes.data.data.status === 'success') {
+                console.log(`🎯 Direct verification success for ${reference}. Updating DB...`);
+                
+                // Perform the same logic as the webhook
+                await prisma.$transaction(async (tx: any) => {
+                    const latestTx = await tx.paymentTransaction.findUnique({
+                        where: { id: transaction.id }
+                    });
+
+                    if (latestTx.status !== 'COMPLETED') {
+                        await tx.paymentTransaction.update({
+                            where: { id: transaction.id },
+                            data: { status: 'COMPLETED' }
+                        });
+
+                        await tx.creatorWallet.upsert({
+                            where: { creatorId: transaction.creatorId },
+                            update: { balance: { increment: transaction.netAmount } },
+                            create: { creatorId: transaction.creatorId, balance: transaction.netAmount }
+                        });
+
+                        await tx.notification.create({
+                            data: {
+                                creatorId: transaction.creatorId,
+                                type: 'SUCCESS',
+                                title: 'New Support! ☕',
+                                message: `${transaction.fanName || 'Someone'} bought you chais worth KES ${transaction.netAmount.toLocaleString()}`
+                            }
+                        });
+                    }
+                });
+
+                return res.json({ status: 'COMPLETED' });
+            }
+        } catch (verifyErr) {
+            console.error('Direct verification check failed (might be too early):', verifyErr.message);
+        }
+
         res.json({ status: transaction.status });
     } catch (err: any) {
         res.status(500).json({ error: err.message });
