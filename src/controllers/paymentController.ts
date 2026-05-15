@@ -114,8 +114,8 @@ export const initializePayment = async (req: Request, res: Response) => {
   }
 };
 
-export const handleWebhook = async (req: Request, res: Response) => {
-  const hash = crypto.createHmac('sha512', process.env.PAYSTACK_SECRET_KEY!).update(JSON.stringify(req.body)).digest('hex');
+export const handleWebhook = async (req: any, res: Response) => {
+  const hash = crypto.createHmac('sha512', process.env.PAYSTACK_SECRET_KEY!).update(req.rawBody || JSON.stringify(req.body)).digest('hex');
   
   if (hash !== req.headers['x-paystack-signature']) {
     return res.status(401).send('Invalid signature');
